@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Rig } from './engine/rig.js';
 import { BeamMesh } from './engine/beam.js';
 import { burstEnvelope } from './engine/lifecycle.js';
+import { currentView } from './router.js';
 import { buildJson, buildModule, buildRecipe, download } from './export/method.js';
 
 /**
@@ -141,11 +142,12 @@ document.getElementById('exp-all').addEventListener('click', () => {
 // --- loop ---------------------------------------------------------------
 const clock = new THREE.Clock();
 function tick(){
+  requestAnimationFrame(tick);
+  if (currentView() !== 'lab') return; // don't animate a hidden context
   const t = clock.getElapsedTime();
   beam.update(t);
   // burstRate 0 => envelope returns 1 => continuous fire, as before.
   beam.set('alpha', burstEnvelope(t, state));
   rig.render();
-  requestAnimationFrame(tick);
 }
 tick();

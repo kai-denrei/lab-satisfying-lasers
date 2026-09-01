@@ -50,6 +50,11 @@ js/
     rig.js            scene, camera, ground, emitter, target
     beam.js           ribbon geometry + the beam shader
     lifecycle.js      burst envelope — pure maths, no three.js
+  techniques/
+    index.js          scissored tile grid, shared orbit, comparison panel
+    base.js           shared noise GLSL + the inputs every technique receives
+    ribbon.js tube.js volumetric.js chain.js raster.js
+  router.js           hash routing between views
   export/
     method.js         json / drop-in module / recipe generators
 tests/
@@ -140,8 +145,22 @@ maths, so it unit-tests in node and is embedded verbatim into every export.
 - [ ] `post.js` — EffectComposer + UnrealBloom. Needs three's post-processing
       addons vendored, which aren't present yet.
 
+**Techniques tab** ✅
+Five rendering approaches drawing the same beam from the same inputs, side by
+side in one scissored renderer under a single shared orbit: camera-facing
+ribbon, extruded tube, raymarched volume, sprite chain, pixel raster. An
+occluder slab crosses every beam so depth behaviour is visible.
+
+Built to answer the architecture question head-on, and it did: **the raymarched
+volume does not fit the shared engine.** Its look depends on the path the view
+ray takes rather than on a surface, which no parameter setting on a ribbon can
+reproduce. Raster and sprite-chain fit only partially. The hybrid-families
+architecture rejected at kickoff is now back on the table — see `.deban/roles/arch.md`.
+
 **Then — app shell**
-- [ ] Two tabs: Study and Lab, hash-routed.
+- [x] Tab shell, hash-routed (`#/lab`, `#/techniques`). The hidden view stops
+      its render loop, so two WebGL contexts never animate at once.
+- [ ] Study tab (archetype taxonomy) — still to build.
 - [ ] Preset catalogue (~8): crimson cutter, plasma lance, tank railgun,
       blaster bolt, ion thread, disintegrator, frost lance, pixel raster.
 - [ ] Deeplinks — `#/lab?fx=<id>` for a clean preset, plus an encoded diff for
@@ -190,6 +209,18 @@ Three bugs worth remembering, all found by rendering rather than by reading:
 3. **`Color.setHSL()` defaults to the linear working space.** A requested
    lightness of `0.03` rendered as a washed-out `~0.19`. Pass
    `THREE.SRGBColorSpace` explicitly.
+
+**Techniques tab.** A GLSL program can link cleanly and still be broken: naming
+a variable `half` (a reserved word in GLSL ES) produced no compile error and no
+console output, but every draw failed with `glGetError 1282` and the mesh drew
+nothing. When geometry silently fails to appear, check `glGetError()` before
+re-reading the shader maths.
+
+Verification limit worth knowing: the raymarched volume is fill-heavy enough
+that headless SwiftShader exceeds a 100s watchdog at 1400x900. It captures fine
+at 880x560. This is a software-rendering artifact, not a GPU performance
+problem — but it means expensive shaders must be verified at reduced
+resolution.
 
 Also: the control panel overlays the right edge, so `camera.setViewOffset()`
 shifts the frustum to centre the stage in the *visible* region rather than the
