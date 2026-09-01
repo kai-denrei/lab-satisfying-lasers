@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Satisfying Lasers — Beam Spike</title>
+<link rel="stylesheet" href="css/app.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <aside id="panel">
+    <header>
+      <h1>beam spike</h1>
+      <p class="sub">glow · core · caps · fbm — three r180</p>
+    </header>
+    <div id="controls"></div>
+    <footer>
+      <button id="reset" type="button" title="restore defaults">reset</button>
+      <button id="exp-json" type="button" title="parameters">.json</button>
+      <button id="exp-js" type="button" title="drop-in three.js module">.js</button>
+      <button id="exp-md" type="button" title="the technique, written out">.md</button>
+      <button id="exp-all" type="button" title="all three">all</button>
+    </footer>
+  </aside>
+
+  <div id="hint">drag to orbit · scroll to zoom</div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

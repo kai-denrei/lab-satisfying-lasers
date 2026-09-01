@@ -1,0 +1,88 @@
+<!doctype html>
+<meta charset="utf-8"><title>export check</title>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/three.module.js", "three/addons/": "/vendor/three/addons/" } }
+</script>
+<body><pre id="out">running…</pre>
+<script type="module">
+import * as THREE from 'three';
+import { buildJson, buildModule, buildRecipe } from '/js/export/method.js';
+
+const log = [];
+const ok = (m) => log.push('PASS ' + m);
+const bad = (m) => log.push('FAIL ' + m);
+
+const state = {
+  coreColor:'#ffffff', coreWidth:0.045, coreIntensity:3.0,
+  glowColor:'#ff2a1a', glowWidth:0.34, glowIntensity:1.5, glowFalloff:2.4,
+  capStart:0.04, capEnd:0.10, blast:1.2,
+  scrollSpeed:2.6, noiseScale:7.0, noiseAmount:0.35, flicker:0.10,
+  jitterAmount:0.015, jitterFreq:40.0,
+  burstRate:4.0, burstDuty:0.5, burstDecay:2.0, burstAttack:0.05,
+  bgBrightness:0.03, exposure:1.0,
+};
+
+try {
+  // 1. JSON parses, splits beam vs scene, keeps every beam param.
+  const j = JSON.parse(buildJson(state, 'test'));
+  j.schema === 'laserfx/1' ? ok('json schema tag') : bad('json schema tag');
+  j.beam.glowWidth === 0.34 ? ok('json carries beam params') : bad('json beam params');
+  ('exposure' in j.beam) ? bad('scene key leaked into beam') : ok('scene keys split out');
+  Object.keys(j.beam).length === 20 ? ok('json has all 20 beam params') : bad('json param count = ' + Object.keys(j.beam).length);
+  j.beam.burstRate === 4.0 ? ok('json carries burst params') : bad('json burst params');
+
+  // 2. The generated module actually parses AND runs.
+  const src = buildModule(state, 'test')
+    .replace("from 'three'", "from '" + location.origin + "/vendor/three/three.module.js'");
+  const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+  const mod = await import(url);
+
+  ok('generated module parses + imports');
+  mod.DEFAULTS.glowWidth === 0.34 ? ok('module defaults baked in') : bad('module defaults');
+  ('exposure' in mod.DEFAULTS) ? bad('scene key leaked into module') : ok('module defaults are beam-only');
+
+  const beam = mod.createBeam(new THREE.Vector3(-3,1,0), new THREE.Vector3(3,1,0));
+  beam.mesh.isMesh ? ok('createBeam returns a Mesh') : bad('createBeam mesh');
+  beam.mesh.frustumCulled === false ? ok('frustumCulled disabled') : bad('frustumCulled');
+  beam.uniforms.uGlowColor.value.isColor ? ok('color uniforms are THREE.Color') : bad('color uniforms');
+  beam.uniforms.uNoiseScale.value === 7.0 ? ok('scalar uniforms wired') : bad('scalar uniforms');
+  beam.mesh.geometry.getAttribute('aU').count === (mod.SEGMENTS + 1) * 2 ? ok('geometry attributes built') : bad('geometry attrs');
+
+  // Overrides must win over baked defaults.
+  const o = mod.createBeam(new THREE.Vector3(), new THREE.Vector3(1,0,0), { glowColor:'#22ddff' });
+  Math.abs(o.uniforms.uGlowColor.value.b - 1) < 0.05 ? ok('overrides applied') : bad('overrides');
+
+  // Burst params must NOT become uniforms, but MUST drive alpha in update().
+  ('uBurstRate' in beam.uniforms) ? bad('burst param leaked into uniforms') : ok('burst params kept off the shader');
+  beam.update(0.01); const aOn = beam.uniforms.uAlpha.value;   // inside a shot
+  beam.update(0.20); const aOff = beam.uniforms.uAlpha.value;  // in the gap
+  (aOn > 0 && aOff === 0) ? ok('exported module actually bursts') : bad(`burst in export: on=${aOn} off=${aOff}`);
+  const cont = mod.createBeam(new THREE.Vector3(), new THREE.Vector3(1,0,0), { burstRate: 0 });
+  cont.update(0.20); cont.uniforms.uAlpha.value === 1 ? ok('rate 0 exports a continuous beam') : bad('continuous export');
+
+  // 3. The generated module really renders (shader compiles).
+  const r = new THREE.WebGLRenderer({ antialias:false });
+  r.setSize(64, 64);
+  const sc = new THREE.Scene(); sc.add(beam.mesh);
+  const cam = new THREE.PerspectiveCamera(50, 1, 0.1, 100); cam.position.set(0,1,6);
+  beam.update(1.0);
+  r.render(sc, cam);
+  const err = r.getContext().getError();
+  err === 0 ? ok('generated shader compiles + renders (glGetError 0)') : bad('gl error ' + err);
+  r.dispose();
+
+  // 4. Recipe embeds the live numbers, not placeholders.
+  const md = buildRecipe(state, 'test');
+  md.includes('2.4') && md.includes('#ff2a1a') ? ok('recipe embeds live values') : bad('recipe values');
+  /TBD|TODO|undefined|NaN/.test(md) ? bad('recipe has placeholders/undefined') : ok('recipe has no placeholders');
+  md.includes('taper') ? ok('recipe documents the cap trick') : bad('recipe cap trick');
+  md.includes('Bursts') && md.includes('duty') ? ok('recipe documents bursts') : bad('recipe bursts');
+} catch (e) {
+  bad('threw: ' + (e && e.stack || e));
+}
+
+const fails = log.filter(l => l.startsWith('FAIL')).length;
+log.push(fails ? `RESULT ${fails} FAILING` : `RESULT ALL ${log.length} PASSED`);
+document.getElementById('out').textContent = log.join('\n');
+console.log('EXPORTCHECK\n' + log.join('\nEXPORTCHECK '));
+</script>
