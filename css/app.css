@@ -80,3 +80,15 @@ select{
   position:fixed;left:14px;bottom:12px;color:#4c5468;font-size:10.5px;
   letter-spacing:.05em;pointer-events:none;z-index:5;
 }
+
+/* Cache-bust badge. Its default bottom-right position collides with the
+   panel's export buttons, so move it clear of the panel. Overriding here
+   rather than editing cb-badge.js keeps the skill's asset re-installable. */
+#cb-badge{
+  right:auto !important;
+  left:14px !important;
+  bottom:30px !important;
+  opacity:.75;
+  transition:opacity .15s;
+}
+#cb-badge:hover{opacity:1}

@@ -25,6 +25,7 @@ Two halves:
 | Assets | **none**. Every effect is procedural — shaders and numbers, no textures. |
 | Server | any static server. `npm run serve` → `http://localhost:8081` |
 | Tests | `npm test` (node, pure modules) + `/tests/export-check.html` (in-browser) |
+| Cache busting | `npm run bust` — `?v=` fingerprinting + shape-favicon badge |
 
 The zero-asset rule is load-bearing, not aesthetic: it's what lets a preset be
 *just JSON* and travel to another project without a texture folder trailing it.
@@ -150,9 +151,14 @@ maths, so it unit-tests in node and is embedded verbatim into every export.
       `drawImage`, gated by IntersectionObserver — not N WebGL contexts.
 
 **Then — infrastructure**
-- [ ] `/cache-busting` — `scripts/bust.sh`, watcher, `?v=` fingerprinting,
-      version badge. Requested at kickoff, still outstanding.
-- [ ] `/deban` — decision log in the vault. Also still outstanding.
+- [x] `/cache-busting` — `scripts/bust.sh`, `?v=` fingerprinting, anti-cache
+      meta tags, shape-favicon + corner badge. `npm run bust` bumps the token
+      everywhere; `npm run watch` re-bumps on save.
+      Badge assets live in `public/` and are referenced **relatively**
+      (`./public/cb-shapes/NN.svg`) — root-absolute paths 404 both here (the
+      repo root is the web root, not `public/`) and under the Pages subpath.
+- [x] `/deban` — decision log at `.deban/`, six roles, solo mode.
+      Gitignored: it is private working memory, not a published artifact.
 - [ ] Node tests for the pure modules (params, deeplink, exporter).
 
 **Maybe — not committed**
